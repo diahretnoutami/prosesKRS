@@ -22,6 +22,19 @@ type ApiResponse = {
   };
 };
 
+type SortRule = {
+  field:
+    | "id"
+    | "student_nim"
+    | "student_name"
+    | "course_code"
+    | "course_name"
+    | "semester"
+    | "academic_year"
+    | "status";
+  dir: "asc" | "desc";
+};
+
 function Badge({ status }: { status: EnrollmentRow["status"] }) {
   const cls =
     status === "APPROVED"
@@ -38,8 +51,10 @@ function Badge({ status }: { status: EnrollmentRow["status"] }) {
 export default function App() {
   const [rows, setRows] = useState<EnrollmentRow[]>([]);
   const [meta, setMeta] = useState<ApiResponse["meta"] | null>(null);
+
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
   const [sortBy, setSortBy] = useState<
     | "id"
     | "student_nim"
@@ -51,6 +66,13 @@ export default function App() {
     | "status"
   >("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Advanced Order (multi-column)
+  const [sortRules, setSortRules] = useState<SortRule[] | null>(null);
+  const [showAdvancedSort, setShowAdvancedSort] = useState(false);
+  const sortsKey = JSON.stringify(sortRules ?? []);
+
+  // Quick filter (min 2)
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED"
   >("ALL");
@@ -60,14 +82,48 @@ export default function App() {
   const [academicYearFilter, setAcademicYearFilter] = useState<"ALL" | string>(
     "ALL",
   );
+
+  // Live search (debounce 300–500ms)
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
+  // Advanced filter UI
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [filterLogic, setFilterLogic] = useState<"AND" | "OR">("AND");
+
+  // Advanced: student_nim op
+  const [afNimOp, setAfNimOp] = useState<"contains" | "startsWith" | "equals">(
+    "contains",
+  );
+  const [afNim, setAfNim] = useState("");
+
+  // Advanced: academic_year equals/between
+  const [afYearMode, setAfYearMode] = useState<"equals" | "between">("equals");
+  const [afYear, setAfYear] = useState("");
+  const [afYearFrom, setAfYearFrom] = useState("");
+  const [afYearTo, setAfYearTo] = useState("");
+
+  // Advanced: semester in
+  const [afSemester, setAfSemester] = useState<{ 1: boolean; 2: boolean }>({
+    1: false,
+    2: false,
+  });
+
+  // Advanced: status in
+  const [afStatus, setAfStatus] = useState<{
+    DRAFT: boolean;
+    SUBMITTED: boolean;
+    APPROVED: boolean;
+    REJECTED: boolean;
+  }>({ DRAFT: false, SUBMITTED: false, APPROVED: false, REJECTED: false });
+
   function onSort(col: typeof sortBy) {
     setPage(1);
-    if (sortBy === col) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
+    // kalau user header-sort, matikan advanced order supaya ga konflik
+    setSortRules(null);
+
+    if (sortBy === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
       setSortBy(col);
       setSortDir("asc");
     }
@@ -83,6 +139,52 @@ export default function App() {
     { label: "Status", key: "status" },
   ];
 
+  function buildAdvancedFilters() {
+    const rules: any[] = [];
+
+    if (afNim.trim()) {
+      rules.push({ field: "student_nim", op: afNimOp, value: afNim.trim() });
+    }
+
+    if (afYearMode === "equals" && afYear.trim()) {
+      rules.push({ field: "academic_year", op: "equals", value: afYear.trim() });
+    }
+    if (afYearMode === "between" && afYearFrom.trim() && afYearTo.trim()) {
+      rules.push({
+        field: "academic_year",
+        op: "between",
+        value: [afYearFrom.trim(), afYearTo.trim()],
+      });
+    }
+
+    const sems = [afSemester[1] ? 1 : null, afSemester[2] ? 2 : null].filter(
+      Boolean,
+    );
+    if (sems.length) rules.push({ field: "semester", op: "in", value: sems });
+
+    const statuses = (
+      Object.keys(afStatus) as (keyof typeof afStatus)[]
+    ).filter((k) => afStatus[k]);
+    if (statuses.length)
+      rules.push({ field: "status", op: "in", value: statuses });
+
+    return rules;
+  }
+
+  // ✅ stable key for dependency
+  const advancedKey = JSON.stringify({
+    afNimOp,
+    afNim,
+    afYearMode,
+    afYear,
+    afYearFrom,
+    afYearTo,
+    afSemester,
+    afStatus,
+    filterLogic,
+  });
+
+  // debounce search
   useEffect(() => {
     const t = setTimeout(() => {
       setPage(1);
@@ -91,19 +193,34 @@ export default function App() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // fetch data
   useEffect(() => {
     const controller = new AbortController();
+
     async function load() {
+      const advancedRules = buildAdvancedFilters();
+
       const qs = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
-        sort_by: sortBy,
-        sort_dir: sortDir,
         status: statusFilter,
         semester: semesterFilter,
         academic_year: academicYearFilter,
         search: search,
+        filter_logic: filterLogic,
       });
+
+      // Advanced order priority
+      if (sortRules && sortRules.length > 0) {
+        qs.set("sorts", JSON.stringify(sortRules));
+      } else {
+        qs.set("sort_by", sortBy);
+        qs.set("sort_dir", sortDir);
+      }
+
+      if (advancedRules.length > 0) {
+        qs.set("filters", JSON.stringify(advancedRules));
+      }
 
       const res = await fetch(`/api/enrollments?${qs.toString()}`, {
         signal: controller.signal,
@@ -120,11 +237,33 @@ export default function App() {
     });
 
     return () => controller.abort();
-  }, [page, sortBy, sortDir, statusFilter, semesterFilter, academicYearFilter, search]);
+  }, [
+    page,
+    sortBy,
+    sortDir,
+    statusFilter,
+    semesterFilter,
+    academicYearFilter,
+    search,
+    advancedKey,
+    sortsKey,
+    filterLogic,
+  ]);
+
+  // helper untuk UI advanced order
+  const sortFieldOptions: { value: SortRule["field"]; label: string }[] = [
+    { value: "academic_year", label: "academic_year" },
+    { value: "semester", label: "semester" },
+    { value: "student_nim", label: "student_nim" },
+    { value: "student_name", label: "student_name" },
+    { value: "course_code", label: "course_code" },
+    { value: "course_name", label: "course_name" },
+    { value: "status", label: "status" },
+    { value: "id", label: "id" },
+  ];
 
   return (
     <div className="page">
-      {}
       <header className="navbar">
         <div className="navbar__inner">
           <div className="brand">
@@ -149,9 +288,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Content (full width) */}
       <main className="container">
-        {/* Card */}
         <div className="card">
           <div className="card__header">
             <h2 className="title">Data KRS (Enrollments)</h2>
@@ -161,10 +298,9 @@ export default function App() {
           </div>
 
           <div className="card__body">
-            {/* Top controls */}
             <div className="controls">
-              {/* Row atas */}
-              <div className="controls__top">
+              {/* ROW 1 */}
+              <div className="controls__row1">
                 <button
                   className="btn btn--primary"
                   onClick={() =>
@@ -193,8 +329,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Row bawah: quick filters */}
-              <div className="controls__filters">
+              {/* ROW 2 */}
+              <div className="controls__row2">
                 <div className="control">
                   <span>Status</span>
                   <select
@@ -245,9 +381,340 @@ export default function App() {
                   </select>
                 </div>
               </div>
+
+              {/* ROW 3 */}
+              <div className="controls__row3">
+                <button
+                  className="btn btn--ghost"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                >
+                  Advanced Filter
+                </button>
+
+                <button
+                  className="btn btn--ghost"
+                  onClick={() => setShowAdvancedSort((v) => !v)}
+                >
+                  Advanced Order
+                </button>
+              </div>
+
+              {/* Advanced Filter */}
+              {showAdvanced && (
+                <div className="adv">
+                  <div className="adv__group1">
+                    <div className="adv__item">
+                      <label className="adv__label">Logic</label>
+                      <select
+                        className="select"
+                        value={filterLogic}
+                        onChange={(e) => {
+                          setPage(1);
+                          setFilterLogic(e.target.value as any);
+                        }}
+                      >
+                        <option value="AND">AND</option>
+                        <option value="OR">OR</option>
+                      </select>
+                    </div>
+
+                    <div className="adv__item">
+                      <label className="adv__label">NIM</label>
+                      <select
+                        className="select"
+                        value={afNimOp}
+                        onChange={(e) => {
+                          setPage(1);
+                          setAfNimOp(e.target.value as any);
+                        }}
+                      >
+                        <option value="contains">contains</option>
+                        <option value="startsWith">startsWith</option>
+                        <option value="equals">equals</option>
+                      </select>
+                    </div>
+
+                    <div className="adv__item">
+                      <label className="adv__label adv__label--ghost"></label>
+                      <input
+                        className="input"
+                        value={afNim}
+                        onChange={(e) => {
+                          setPage(1);
+                          setAfNim(e.target.value);
+                        }}
+                        placeholder="contoh: 0001"
+                      />
+                    </div>
+
+                    <div className="adv__item">
+                      <label className="adv__label">Academic Year</label>
+                      <select
+                        className="select"
+                        value={afYearMode}
+                        onChange={(e) => {
+                          setPage(1);
+                          setAfYearMode(e.target.value as any);
+                        }}
+                      >
+                        <option value="equals">equals</option>
+                        <option value="between">between</option>
+                      </select>
+                    </div>
+
+                    <div className="adv__item adv__item--year">
+                      <label className="adv__label adv__label--ghost"></label>
+
+                      {afYearMode === "equals" ? (
+                        <input
+                          className="input"
+                          placeholder="2025/2026"
+                          value={afYear}
+                          onChange={(e) => {
+                            setPage(1);
+                            setAfYear(e.target.value);
+                          }}
+                        />
+                      ) : (
+                        <div className="adv__between">
+                          <input
+                            className="input"
+                            placeholder="from (YYYY/YYYY)"
+                            value={afYearFrom}
+                            onChange={(e) => {
+                              setPage(1);
+                              setAfYearFrom(e.target.value);
+                            }}
+                          />
+                          <input
+                            className="input"
+                            placeholder="to (YYYY/YYYY)"
+                            value={afYearTo}
+                            onChange={(e) => {
+                              setPage(1);
+                              setAfYearTo(e.target.value);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="adv__group2">
+                    <div className="adv__block">
+                      <label className="adv__label">Semester</label>
+
+                      <label className="adv__check">
+                        <input
+                          type="checkbox"
+                          checked={afSemester[1]}
+                          onChange={(e) => {
+                            setPage(1);
+                            setAfSemester((s) => ({
+                              ...s,
+                              1: e.target.checked,
+                            }));
+                          }}
+                        />
+                        <span>1</span>
+                      </label>
+
+                      <label className="adv__check">
+                        <input
+                          type="checkbox"
+                          checked={afSemester[2]}
+                          onChange={(e) => {
+                            setPage(1);
+                            setAfSemester((s) => ({
+                              ...s,
+                              2: e.target.checked,
+                            }));
+                          }}
+                        />
+                        <span>2</span>
+                      </label>
+                    </div>
+
+                    <div className="adv__block">
+                      <label className="adv__label">Status</label>
+
+                      {(
+                        ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"] as const
+                      ).map((st) => (
+                        <label className="adv__check" key={st}>
+                          <input
+                            type="checkbox"
+                            checked={afStatus[st]}
+                            onChange={(e) => {
+                              setPage(1);
+                              setAfStatus((s) => ({
+                                ...s,
+                                [st]: e.target.checked,
+                              }));
+                            }}
+                          />
+                          <span>{st}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="adv__actions">
+                    <button
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        setPage(1);
+                        setFilterLogic("AND");
+                        setAfNimOp("contains");
+                        setAfNim("");
+                        setAfYearMode("equals");
+                        setAfYear("");
+                        setAfYearFrom("");
+                        setAfYearTo("");
+                        setAfSemester({ 1: false, 2: false });
+                        setAfStatus({
+                          DRAFT: false,
+                          SUBMITTED: false,
+                          APPROVED: false,
+                          REJECTED: false,
+                        });
+                      }}
+                    >
+                      Reset Advanced
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ Advanced Order UI */}
+              {showAdvancedSort && (
+                <div className="adv">
+                  <div className="adv__group1">
+                    <div className="adv__item" style={{ gridColumn: "1 / -1" }}>
+                      <label className="adv__label">
+                        Advanced Order (multi-column)
+                      </label>
+                      <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>
+                        Urutan dieksekusi dari atas ke bawah.
+                      </div>
+                    </div>
+
+                    {(sortRules ?? []).map((rule, idx) => (
+                      <div
+                        key={idx}
+                        className="adv__item"
+                        style={{ gridColumn: "1 / -1" }}
+                      >
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <span style={{ width: 22, color: "#6b7280" }}>
+                            {idx + 1}.
+                          </span>
+
+                          <select
+                            className="select"
+                            value={rule.field}
+                            onChange={(e) => {
+                              setPage(1);
+                              setSortBy("id");
+                              setSortDir("desc");
+                              setSortRules((prev) => {
+                                const next = [...(prev ?? [])];
+                                next[idx] = { ...next[idx], field: e.target.value as any };
+                                return next;
+                              });
+                            }}
+                          >
+                            {sortFieldOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            className="select"
+                            value={rule.dir}
+                            onChange={(e) => {
+                              setPage(1);
+                              setSortRules((prev) => {
+                                const next = [...(prev ?? [])];
+                                next[idx] = { ...next[idx], dir: e.target.value as any };
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="asc">ASC</option>
+                            <option value="desc">DESC</option>
+                          </select>
+
+                          <button
+                            className="btn btn--ghost"
+                            onClick={() => {
+                              setPage(1);
+                              setSortRules((prev) => {
+                                const next = [...(prev ?? [])];
+                                next.splice(idx, 1);
+                                return next.length ? next : null;
+                              });
+                            }}
+                            title="Remove rule"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="adv__actions" style={{ gap: 10 }}>
+                    <button
+                      className="btn btn--primary"
+                      onClick={() => {
+                        setPage(1);
+                        // kalau kosong, set default sesuai contoh requirement
+                        if (!sortRules || sortRules.length === 0) {
+                          setSortRules([
+                            { field: "academic_year", dir: "desc" },
+                            { field: "semester", dir: "asc" },
+                            { field: "student_nim", dir: "asc" },
+                          ]);
+                          return;
+                        }
+                        setSortRules([...sortRules]);
+                      }}
+                    >
+                      Apply Advanced Order
+                    </button>
+
+                    <button
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        setPage(1);
+                        setSortRules((prev) => {
+                          const next = [...(prev ?? [])];
+                          next.push({ field: "student_nim", dir: "asc" });
+                          return next;
+                        });
+                      }}
+                    >
+                      + Add Rule
+                    </button>
+
+                    <button
+                      className="btn btn--ghost"
+                      onClick={() => {
+                        setPage(1);
+                        setSortRules(null); // balik ke header sort
+                        setShowAdvancedSort(false);
+                      }}
+                    >
+                      Use Header Sort
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Table */}
             <div className="tableWrap">
               <table className="table">
                 <thead>
@@ -299,7 +766,6 @@ export default function App() {
               </table>
             </div>
 
-            {/* Pagination */}
             <div className="pagination">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}

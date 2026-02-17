@@ -1,7 +1,14 @@
 .page {
   min-height: 100vh;
   background: #f5f7fb;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   color: #111827;
 }
 
@@ -9,8 +16,8 @@
 .navbar {
   position: sticky;
   top: 0;
-  left: 0; 
-  right: 0;  
+  left: 0;
+  right: 0;
   z-index: 10;
   background: white;
   border-bottom: 1px solid #e5e7eb;
@@ -18,7 +25,7 @@
 
 .navbar__inner {
   width: 100%;
-  max-width: 1200px; 
+  max-width: 1200px;
   margin: 0 auto;
   padding: 12px 16px;
   display: flex;
@@ -63,9 +70,9 @@
 /* Content */
 .container {
   width: 100%;
-  max-width: 1200px;   
-  margin: 0 auto;      
-  padding: 24px 16px;  
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
 }
 
 /* Card */
@@ -109,19 +116,161 @@
   margin-bottom: 12px;
 }
 
-.controls__top {
+.control {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.controls__row1 {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.controls__row2 {
+  display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.controls__filters {
+.controls__row3 {
   display: flex;
-  gap: 12px;
   align-items: center;
+  justify-content: flex-start;
+}
+
+.controls .input {
+  width: 320px;
+  max-width: 40vw;
+}
+
+/* Mobile */
+@media (max-width: 980px) {
+  .controls__row1,
+  .controls__row2 {
+    justify-content: flex-start;
+  }
+
+  .controls .input {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Advanced filter panel */
+.adv {
+  border: 1px solid #eef2f7;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* GROUP 1: satu row */
+.adv__group1 {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+/* Item kecil di group 1 */
+.adv__item {
+  min-width: auto;
+}
+
+.adv__item:nth-child(1) {
+  min-width: 110px;
+}
+
+.adv__item:nth-child(2) {
+  min-width: 160px;
+}
+
+.adv__item:nth-child(3) {
+  min-width: 170px;
+}
+.adv__item:nth-child(3) .input {
+  width: 170px;
+}
+
+.adv__item:nth-child(4) {
+  min-width: 170px;
+}
+
+.adv__item--year {
+  min-width: 220px;
+}
+.adv__item--year .input {
+  width: 180px;
+}
+
+.adv__between .input {
+  width: 160px;
+}
+
+/* GROUP 2: row bawahnya */
+.adv__group2 {
+  display: flex;
+  gap: 18px;
   flex-wrap: wrap;
+}
+
+.adv__block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.adv__block .adv__label {
+  margin-right: 4px;
+}
+.adv__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+/* actions row */
+.adv__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Mobile: group1 boleh wrap biar gak perlu scroll */
+@media (max-width: 980px) {
+  .adv__group1 {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .adv__item,
+  .adv__item--year {
+    min-width: 100%;
+  }
+
+  .adv__between {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .adv__between .input {
+    width: 100%;
+  }
 }
 
 /* Button */
@@ -169,7 +318,7 @@
 /* Table */
 .tableWrap {
   overflow-x: auto;
-  overscroll-behavior-x: contain; 
+  overscroll-behavior-x: contain;
 }
 
 .table {
