@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+const API_BASE = "https://proseskrs-production.up.railway.app";
 
 type StudentOpt = { id: number; nim: string; name: string; email: string };
 type CourseOpt = { id: number; code: string; name: string; credits: number };
@@ -9,7 +10,7 @@ type InitialData = {
   id: number;
   student_id: number;
   course_id: number;
-  
+
   student_nim?: string;
   student_name?: string;
   student_email?: string;
@@ -175,7 +176,7 @@ function SearchableSelect<T extends { id: number }>(props: {
         }}
       >
         <span>
-          {selected ? getLabel(selected) : placeholder ?? "Select..."}
+          {selected ? getLabel(selected) : (placeholder ?? "Select...")}
         </span>
         <span style={{ color: "#6b7280" }}>{open ? "▲" : "▼"}</span>
       </button>
@@ -247,7 +248,9 @@ export default function KrsModal({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState<string>("");
 
-  const [studentMode, setStudentMode] = useState<"existing" | "new">("existing");
+  const [studentMode, setStudentMode] = useState<"existing" | "new">(
+    "existing",
+  );
   const [students, setStudents] = useState<StudentOpt[]>([]);
   const [studentId, setStudentId] = useState<number | null>(null);
 
@@ -274,8 +277,8 @@ export default function KrsModal({
     async function loadOptions() {
       try {
         const [sRes, cRes] = await Promise.all([
-          fetch("/api/students"),
-          fetch("/api/courses"),
+          fetch(`${API_BASE}/api/students`),
+          fetch(`${API_BASE}/api/courses`),
         ]);
 
         if (!sRes.ok) throw new Error("Failed to load students");
@@ -364,7 +367,8 @@ export default function KrsModal({
     if (studentMode === "existing") {
       if (!studentId) e["studentId"] = "Pilih NIM dulu.";
     } else {
-      if (!isValidNim(nim)) e["nim"] = "NIM wajib 8–12 digit angka, tanpa spasi.";
+      if (!isValidNim(nim))
+        e["nim"] = "NIM wajib 8–12 digit angka, tanpa spasi.";
       if (studentName.trim().length < 3 || studentName.trim().length > 100)
         e["studentName"] = "Nama wajib 3–100 karakter.";
       if (!isValidEmail(studentEmail)) e["studentEmail"] = "Email tidak valid.";
@@ -382,7 +386,8 @@ export default function KrsModal({
     }
 
     if (!isValidAcademicYear(academicYear))
-      e["academicYear"] = "Tahun ajaran wajib format YYYY/YYYY (contoh 2025/2026).";
+      e["academicYear"] =
+        "Tahun ajaran wajib format YYYY/YYYY (contoh 2025/2026).";
 
     if (![1, 2].includes(semester)) e["semester"] = "Semester harus 1 atau 2.";
 
@@ -427,8 +432,9 @@ export default function KrsModal({
 
     const url =
       isUpdate && (enrollmentId ?? initial?.id)
-        ? `/api/enrollments/${enrollmentId ?? initial?.id}`
-        : "/api/enrollments";
+        ? `${API_BASE}/api/enrollments/${enrollmentId ?? initial?.id}`
+        : `${API_BASE}/api/enrollments`;
+
     const method = isUpdate ? "PUT" : "POST";
 
     try {
@@ -447,7 +453,9 @@ export default function KrsModal({
         if (j && j.errors && typeof j.errors === "object") {
           const fe: FieldErrors = {};
           for (const k of Object.keys(j.errors)) {
-            const msg = Array.isArray(j.errors[k]) ? j.errors[k][0] : String(j.errors[k]);
+            const msg = Array.isArray(j.errors[k])
+              ? j.errors[k][0]
+              : String(j.errors[k]);
             fe[k] = msg;
           }
           setErrors((prev) => ({ ...prev, ...fe }));
@@ -477,10 +485,9 @@ export default function KrsModal({
     ? ""
     : "Klik (+) untuk menambah data students dan course baru";
 
-  const studentLocked = isUpdate; 
-  const courseLockedNew = isUpdate; 
-  const courseDetailsLocked =
-    isUpdate || courseMode === "existing"; 
+  const studentLocked = isUpdate;
+  const courseLockedNew = isUpdate;
+  const courseDetailsLocked = isUpdate || courseMode === "existing";
 
   return (
     <ModalShell title={title} subtitle={subtitle} onClose={onClose}>
@@ -563,7 +570,10 @@ export default function KrsModal({
           )}
         </Field>
 
-        <Field label="Nama" error={errors["studentName"] || errors["student.name"]}>
+        <Field
+          label="Nama"
+          error={errors["studentName"] || errors["student.name"]}
+        >
           <input
             className="input"
             value={studentName}
@@ -573,7 +583,10 @@ export default function KrsModal({
           />
         </Field>
 
-        <Field label="Email" error={errors["studentEmail"] || errors["student.email"]}>
+        <Field
+          label="Email"
+          error={errors["studentEmail"] || errors["student.email"]}
+        >
           <input
             className="input"
             value={studentEmail}
@@ -588,7 +601,10 @@ export default function KrsModal({
           Course
         </div>
 
-        <Field label="Kode Mata Kuliah" error={errors["courseId"] || errors["courseCode"]}>
+        <Field
+          label="Kode Mata Kuliah"
+          error={errors["courseId"] || errors["courseCode"]}
+        >
           {courseMode === "existing" ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <SearchableSelect
@@ -642,7 +658,10 @@ export default function KrsModal({
           )}
         </Field>
 
-        <Field label="Mata Kuliah" error={errors["courseName"] || errors["course.name"]}>
+        <Field
+          label="Mata Kuliah"
+          error={errors["courseName"] || errors["course.name"]}
+        >
           <input
             className="input"
             value={courseName}
@@ -652,7 +671,10 @@ export default function KrsModal({
           />
         </Field>
 
-        <Field label="SKS / Credits" error={errors["credits"] || errors["course.credits"]}>
+        <Field
+          label="SKS / Credits"
+          error={errors["credits"] || errors["course.credits"]}
+        >
           <input
             className="input"
             type="number"
@@ -669,7 +691,10 @@ export default function KrsModal({
           Enrollment
         </div>
 
-        <Field label="Semester" error={errors["semester"] || errors["enrollment.semester"]}>
+        <Field
+          label="Semester"
+          error={errors["semester"] || errors["enrollment.semester"]}
+        >
           <select
             className="select"
             value={semester}
@@ -692,7 +717,10 @@ export default function KrsModal({
           />
         </Field>
 
-        <Field label="Status" error={errors["status"] || errors["enrollment.status"]}>
+        <Field
+          label="Status"
+          error={errors["status"] || errors["enrollment.status"]}
+        >
           <select
             className="select"
             value={status}
@@ -708,11 +736,28 @@ export default function KrsModal({
         <div />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-        <button className="btn btn--ghost" type="button" onClick={onClose} disabled={loading}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          marginTop: 18,
+        }}
+      >
+        <button
+          className="btn btn--ghost"
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+        >
           Cancel
         </button>
-        <button className="btn btn--primary" type="button" onClick={onSubmit} disabled={loading}>
+        <button
+          className="btn btn--primary"
+          type="button"
+          onClick={onSubmit}
+          disabled={loading}
+        >
           {loading ? "Saving..." : isUpdate ? "Save Changes" : "Save KRS"}
         </button>
       </div>
