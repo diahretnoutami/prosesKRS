@@ -375,4 +375,4 @@ Waktu proses seeding 5.000.000 dan export sangat tergantung pada:
 - Pencarian `contains` pada kolom teks besar bisa lebih lambat pada dataset besar; optimasi lanjutan dapat menggunakan trigram index (`pg_trgm`) jika diperlukan.
 
 
-##
+## ok
