@@ -6,11 +6,12 @@ frontend/dist/
 frontend/.vite/
 frontend/.env*
 
-# Backend (Laravel)
+# Backend 
 backend/vendor/
 backend/node_modules/
 backend/storage/logs/
 backend/storage/framework/
 backend/bootstrap/cache/
 backend/.env*
+!backend/.env.example
 backend/public/storage
