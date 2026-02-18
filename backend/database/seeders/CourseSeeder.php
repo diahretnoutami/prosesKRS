@@ -15,7 +15,9 @@ class CourseSeeder extends Seeder
         $batch = [];
         $chunk = 1000;
 
-        for ($i = 101; $i <= 999; $i++) {
+        $maxCourses = 2000; 
+
+        for ($i = 101; $i <= $maxCourses; $i++) {
             $code = "IF" . str_pad((string)$i, 3, "0", STR_PAD_LEFT);
 
             $batch[] = [

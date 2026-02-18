@@ -13,8 +13,8 @@ class StudentSeeder extends Seeder
         $now = now();
 
         $startNim = 215500001;
-        $totalStudents = 50000;   // aman untuk 5 juta enrollments
-        $chunk = 5000;
+        $totalStudents = 5000;  
+        $chunk = 500;
 
         for ($i = 0; $i < $totalStudents; $i += $chunk) {
             $batch = [];
