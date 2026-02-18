@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import KrsModal from "./Components/KrsModal";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 type EnrollmentRow = {
   id: number;
@@ -76,7 +77,7 @@ export default function App() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/enrollments/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/enrollments/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       setPage(1); // sekarang aman karena scope-nya sama
@@ -267,8 +268,7 @@ export default function App() {
 
   function onExport() {
     const qs = buildQueryParams({ includePagination: false });
-    window.open(`/api/enrollments/export?${qs.toString()}`, "_blank");
-  }
+    window.open(`${API_BASE}/api/enrollments/export?${qs.toString()}`, "_blank");
 
   // debounce search
   useEffect(() => {
@@ -286,7 +286,7 @@ export default function App() {
     async function load() {
       const qs = buildQueryParams({ includePagination: true });
 
-      const res = await fetch(`/api/enrollments?${qs.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/enrollments?${qs.toString()}`, {
         signal: controller.signal,
       });
 
@@ -956,4 +956,5 @@ export default function App() {
       </main>
     </div>
   );
+}
 }
