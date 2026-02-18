@@ -274,6 +274,7 @@ export default function App() {
       `${API_BASE}/api/enrollments/export?${qs.toString()}`,
       "_blank",
     );
+  }
 
     // debounce search
     useEffect(() => {
@@ -978,4 +979,4 @@ export default function App() {
       </div>
     );
   }
-}
+
