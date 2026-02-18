@@ -48,7 +48,7 @@
 Delete menggunakan hard delete pada tabel enrollments. Aksi ini hanya menghapus relasi KRS (enrollment) tanpa mempengaruhi master data students/courses.
 
 ### Update (hanya enrollment)
-Delete menggunakan hard delete pada tabel enrollments. Aksi ini hanya menghapus relasi KRS (enrollment) tanpa mempengaruhi master data students/courses. course_id bisa diganti (artinya pindah mata kuliah) tetapi tidak mengubah data course. 
+Update hanya mengubah data pada tabel enrollments. `course_id` bisa diganti (pindah mata kuliah) tetapi tidak mengubah master data course maupun student.
 
 ## Setup Local
 ### Prerequisites
@@ -144,29 +144,17 @@ Aplikasi terdiri dari **1 halaman utama** (single page) untuk mengelola data KRS
   - Advanced filter untuk semua kolom (multi-filter) + dukungan AND/OR
 
 ### 2) Create Enrollment (Atomic Store)
-Klik tombol **Tambah KRS**, lalu isi form yang terdiri dari 3 bagian:
-
-**A. Student**
-- NIM
-- Nama
-- Email
-
-**B. Course**
-- Kode Mata kuliah
-- Nama Mata kuliah
-- SKS/Credits
-
-**C. Enrollment**
-- Academic Year (YYYY/YYYY)
-- Semester (1/2)
-- Status (DRAFT/SUBMITTED/APPROVED/REJECTED)
+Klik tombol **Tambah KRS**, form mendukung:
+- **Student**: pilih existing (dropdown) atau tambah baru
+- **Course**: pilih existing (dropdown) atau tambah baru
 
 **Behavior saat submit (atomic transaction):**
-- Sistem melakukan **upsert** ke `students` berdasarkan unique key (`nim` dan/atau `email`)
-- Sistem melakukan **upsert** ke `courses` berdasarkan unique key (`code`)
-- Sistem membuat record di `enrollments` dengan FK valid (`student_id`, `course_id`)
-- Semua proses berjalan dalam **1 transaksi database**:
-  - jika salah satu proses gagal → **rollback** (tidak ada data setengah tersimpan)
+- Jika pilih existing → gunakan `student.id` / `course.id`
+- Jika tambah baru → backend melakukan upsert student (berdasarkan `nim/email`) dan upsert course (berdasarkan `code`)
+- Sistem membuat record di `enrollments` dengan FK valid
+- Semua proses berjalan dalam **1 transaksi database** (rollback jika salah satu ggagal)
+
+Catatan: pada proses Create, backend menetapkan status default menjadi **SUBMITTED**.
 
 ### 3) Update Enrollment
 Dari tabel, pilih salah satu enrollment lalu klik **Edit**:
@@ -241,7 +229,7 @@ Request body:
 }
 ```
 
-**PATCH** `/api/enrollments{id}`
+**PUT** `/api/enrollments{id}`
 Update enrollment (mis: status, semester, academic_year, opsional course_id).
 
 **DELETE** `/api/enrollments/{id}`
