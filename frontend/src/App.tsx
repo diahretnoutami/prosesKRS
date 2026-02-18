@@ -77,7 +77,9 @@ export default function App() {
     if (!ok) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/enrollments/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/enrollments/${id}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       setPage(1); // sekarang aman karena scope-nya sama
@@ -268,693 +270,712 @@ export default function App() {
 
   function onExport() {
     const qs = buildQueryParams({ includePagination: false });
-    window.open(`${API_BASE}/api/enrollments/export?${qs.toString()}`, "_blank");
+    window.open(
+      `${API_BASE}/api/enrollments/export?${qs.toString()}`,
+      "_blank",
+    );
 
-  // debounce search
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      setSearch(searchInput.trim());
-    }, 400);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+    // debounce search
+    useEffect(() => {
+      const t = setTimeout(() => {
+        setPage(1);
+        setSearch(searchInput.trim());
+      }, 400);
+      return () => clearTimeout(t);
+    }, [searchInput]);
 
-  // fetch data
-  useEffect(() => {
-    const controller = new AbortController();
+    // fetch data
+    useEffect(() => {
+      const controller = new AbortController();
 
-    async function load() {
-      const qs = buildQueryParams({ includePagination: true });
+      async function load() {
+        const qs = buildQueryParams({ includePagination: true });
 
-      const res = await fetch(`${API_BASE}/api/enrollments?${qs.toString()}`, {
-        signal: controller.signal,
+        const res = await fetch(
+          `${API_BASE}/api/enrollments?${qs.toString()}`,
+          {
+            signal: controller.signal,
+          },
+        );
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json: ApiResponse = await res.json();
+        setRows(json.data);
+        setMeta(json.meta);
+      }
+
+      load().catch((e) => {
+        if (e.name !== "AbortError") console.error(e);
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json: ApiResponse = await res.json();
-      setRows(json.data);
-      setMeta(json.meta);
-    }
+      return () => controller.abort();
+    }, [
+      page,
+      pageSize,
+      statusFilter,
+      semesterFilter,
+      academicYearFilter,
+      search,
+      filterLogic,
+      sortBy,
+      sortDir,
+      sortRules,
+      advancedRules,
+    ]);
 
-    load().catch((e) => {
-      if (e.name !== "AbortError") console.error(e);
-    });
+    return (
+      <div className="page">
+        {toast && (
+          <div
+            className={`toast toast--${toast.type}`}
+            role="status"
+            aria-live="polite"
+          >
+            {toast.message}
+          </div>
+        )}
 
-    return () => controller.abort();
-  }, [
-    page,
-    pageSize,
-    statusFilter,
-    semesterFilter,
-    academicYearFilter,
-    search,
-    filterLogic,
-    sortBy,
-    sortDir,
-    sortRules,
-    advancedRules,
-  ]);
+        {}
+        {showCreate && (
+          <KrsModal
+            mode="create"
+            onClose={() => setShowCreate(false)}
+            onSuccess={() => {
+              setShowCreate(false);
+              setPage(1);
+              showToast("success", "Berhasil membuat KRS!");
+            }}
+          />
+        )}
 
-  return (
-    <div className="page">
-      {toast && (
-        <div
-          className={`toast toast--${toast.type}`}
-          role="status"
-          aria-live="polite"
-        >
-          {toast.message}
-        </div>
-      )}
-
-      {}
-      {showCreate && (
-        <KrsModal
-          mode="create"
-          onClose={() => setShowCreate(false)}
-          onSuccess={() => {
-            setShowCreate(false);
-            setPage(1);
-            showToast("success", "Berhasil membuat KRS!");
-          }}
-        />
-      )}
-
-      {editingId !== null && (
-        <KrsModal
-          mode="update"
-          enrollmentId={editingId}
-          initial={
-            editingRow && {
-              id: editingRow.id,
-              student_id: editingRow.student_id,
-              course_id: editingRow.course_id,
-              semester: editingRow.semester as 1 | 2,
-              academic_year: editingRow.academic_year,
-              status: editingRow.status,
-              student_nim: editingRow.student_nim,
-              student_name: editingRow.student_name,
-              student_email: editingRow.student_email,
-              course_code: editingRow.course_code,
-              course_name: editingRow.course_name,
-              course_credits: editingRow.course_credits,
+        {editingId !== null && (
+          <KrsModal
+            mode="update"
+            enrollmentId={editingId}
+            initial={
+              editingRow && {
+                id: editingRow.id,
+                student_id: editingRow.student_id,
+                course_id: editingRow.course_id,
+                semester: editingRow.semester as 1 | 2,
+                academic_year: editingRow.academic_year,
+                status: editingRow.status,
+                student_nim: editingRow.student_nim,
+                student_name: editingRow.student_name,
+                student_email: editingRow.student_email,
+                course_code: editingRow.course_code,
+                course_name: editingRow.course_name,
+                course_credits: editingRow.course_credits,
+              }
             }
-          }
-          onClose={() => {
-            setEditingId(null);
-            setEditingRow(undefined);
-          }}
-          onSuccess={() => {
-            setEditingId(null);
-            setEditingRow(undefined);
-            setPage(1);
-            showToast("success", "Berhasil update KRS!");
-          }}
-        />
-      )}
+            onClose={() => {
+              setEditingId(null);
+              setEditingRow(undefined);
+            }}
+            onSuccess={() => {
+              setEditingId(null);
+              setEditingRow(undefined);
+              setPage(1);
+              showToast("success", "Berhasil update KRS!");
+            }}
+          />
+        )}
 
-      <header className="navbar">
-        <div className="navbar__inner">
-          <div className="brand">
-            <div className="brand__logo" />
-            <b className="brand__title">KRS Akademik</b>
-          </div>
-
-          <nav className="nav">
-            <a className="nav__link" href="#">
-              Home
-            </a>
-            <a className="nav__link" href="#">
-              About
-            </a>
-            <a className="nav__link" href="#">
-              Contact
-            </a>
-            <a className="nav__link nav__link--primary" href="#">
-              Login
-            </a>
-          </nav>
-        </div>
-      </header>
-
-      <main className="container">
-        <div className="card">
-          <div className="card__header">
-            <h2 className="title">Data KRS (Enrollments)</h2>
-            <div className="subtitle">
-              Total data: <b className="subtitle__strong">{meta?.total ?? 0}</b>
+        <header className="navbar">
+          <div className="navbar__inner">
+            <div className="brand">
+              <div className="brand__logo" />
+              <b className="brand__title">KRS Akademik</b>
             </div>
+
+            <nav className="nav">
+              <a className="nav__link" href="#">
+                Home
+              </a>
+              <a className="nav__link" href="#">
+                About
+              </a>
+              <a className="nav__link" href="#">
+                Contact
+              </a>
+              <a className="nav__link nav__link--primary" href="#">
+                Login
+              </a>
+            </nav>
           </div>
+        </header>
 
-          <div className="card__body">
-            <div className="controls">
-              {/* row1 */}
-              <div className="controls__row1">
-                <button
-                  className="btn btn--primary"
-                  onClick={() => setShowCreate(true)}
-                >
-                  + Tambah KRS
-                </button>
-
-                <div className="control">
-                  <span>Show</span>
-                  <select
-                    value={pageSize}
-                    className="select"
-                    onChange={(e) => {
-                      setPage(1);
-                      setPageSize(Number(e.target.value));
-                    }}
-                  >
-                    {[10, 25, 50, 100].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <span>entries</span>
-                </div>
-
-                <div className="control">
-                  <span>Search:</span>
-                  <input
-                    placeholder="NIM / Nama / Kode MK..."
-                    className="input"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                  />
-                </div>
+        <main className="container">
+          <div className="card">
+            <div className="card__header">
+              <h2 className="title">Data KRS (Enrollments)</h2>
+              <div className="subtitle">
+                Total data:{" "}
+                <b className="subtitle__strong">{meta?.total ?? 0}</b>
               </div>
+            </div>
 
-              {/* row2 */}
-              <div className="controls__row2">
-                <div className="control">
-                  <span>Status</span>
-                  <select
-                    className="select"
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setPage(1);
-                      setStatusFilter(e.target.value as any);
-                    }}
+            <div className="card__body">
+              <div className="controls">
+                {/* row1 */}
+                <div className="controls__row1">
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => setShowCreate(true)}
                   >
-                    <option value="ALL">All</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="SUBMITTED">SUBMITTED</option>
-                    <option value="APPROVED">APPROVED</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
-                </div>
+                    + Tambah KRS
+                  </button>
 
-                <div className="control">
-                  <span>Semester</span>
-                  <select
-                    className="select"
-                    value={semesterFilter}
-                    onChange={(e) => {
-                      setPage(1);
-                      setSemesterFilter(e.target.value as any);
-                    }}
-                  >
-                    <option value="ALL">All</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
-                </div>
-
-                <div className="control">
-                  <span>Tahun Ajaran</span>
-                  <select
-                    className="select"
-                    value={academicYearFilter}
-                    onChange={(e) => {
-                      setPage(1);
-                      setAcademicYearFilter(e.target.value);
-                    }}
-                  >
-                    <option value="ALL">All</option>
-                    <option value="2024/2025">2024/2025</option>
-                    <option value="2025/2026">2025/2026</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* row3 */}
-              <div className="controls__row3">
-                <button
-                  className="btn btn--ghost"
-                  onClick={() => setShowAdvanced((v) => !v)}
-                >
-                  Advanced Filter
-                </button>
-
-                <button
-                  className="btn btn--ghost"
-                  onClick={() => setShowAdvancedSort((v) => !v)}
-                >
-                  Advanced Order
-                </button>
-
-                <button className="btn btn--primary" onClick={onExport}>
-                  Export CSV
-                </button>
-              </div>
-
-              {/* adavnced filter */}
-              {showAdvanced && (
-                <div className="adv">
-                  <div className="adv__group1">
-                    <div className="adv__item">
-                      <label className="adv__label">Logic</label>
-                      <select
-                        className="select"
-                        value={filterLogic}
-                        onChange={(e) => {
-                          setPage(1);
-                          setFilterLogic(e.target.value as any);
-                        }}
-                      >
-                        <option value="AND">AND</option>
-                        <option value="OR">OR</option>
-                      </select>
-                    </div>
-
-                    <div className="adv__item">
-                      <label className="adv__label">NIM</label>
-                      <select
-                        className="select"
-                        value={afNimOp}
-                        onChange={(e) => {
-                          setPage(1);
-                          setAfNimOp(e.target.value as any);
-                        }}
-                      >
-                        <option value="contains">contains</option>
-                        <option value="startsWith">startsWith</option>
-                        <option value="equals">equals</option>
-                      </select>
-                    </div>
-
-                    <div className="adv__item">
-                      <label className="adv__label adv__label--ghost"></label>
-                      <input
-                        className="input"
-                        value={afNim}
-                        onChange={(e) => {
-                          setPage(1);
-                          setAfNim(e.target.value);
-                        }}
-                        placeholder="contoh: 0001"
-                      />
-                    </div>
-
-                    <div className="adv__item">
-                      <label className="adv__label">Academic Year</label>
-                      <select
-                        className="select"
-                        value={afYearMode}
-                        onChange={(e) => {
-                          setPage(1);
-                          setAfYearMode(e.target.value as any);
-                        }}
-                      >
-                        <option value="equals">equals</option>
-                        <option value="between">between</option>
-                      </select>
-                    </div>
-
-                    <div className="adv__item adv__item--year">
-                      <label className="adv__label adv__label--ghost"></label>
-
-                      {afYearMode === "equals" ? (
-                        <input
-                          className="input"
-                          placeholder="2025/2026"
-                          value={afYear}
-                          onChange={(e) => {
-                            setPage(1);
-                            setAfYear(e.target.value);
-                          }}
-                        />
-                      ) : (
-                        <div className="adv__between">
-                          <input
-                            className="input"
-                            placeholder="from (YYYY/YYYY)"
-                            value={afYearFrom}
-                            onChange={(e) => {
-                              setPage(1);
-                              setAfYearFrom(e.target.value);
-                            }}
-                          />
-                          <input
-                            className="input"
-                            placeholder="to (YYYY/YYYY)"
-                            value={afYearTo}
-                            onChange={(e) => {
-                              setPage(1);
-                              setAfYearTo(e.target.value);
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                  <div className="control">
+                    <span>Show</span>
+                    <select
+                      value={pageSize}
+                      className="select"
+                      onChange={(e) => {
+                        setPage(1);
+                        setPageSize(Number(e.target.value));
+                      }}
+                    >
+                      {[10, 25, 50, 100].map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                    <span>entries</span>
                   </div>
 
-                  <div className="adv__group2">
-                    <div className="adv__block">
-                      <label className="adv__label">Semester</label>
+                  <div className="control">
+                    <span>Search:</span>
+                    <input
+                      placeholder="NIM / Nama / Kode MK..."
+                      className="input"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                    />
+                  </div>
+                </div>
 
-                      <label className="adv__check">
-                        <input
-                          type="checkbox"
-                          checked={afSemester[1]}
+                {/* row2 */}
+                <div className="controls__row2">
+                  <div className="control">
+                    <span>Status</span>
+                    <select
+                      className="select"
+                      value={statusFilter}
+                      onChange={(e) => {
+                        setPage(1);
+                        setStatusFilter(e.target.value as any);
+                      }}
+                    >
+                      <option value="ALL">All</option>
+                      <option value="DRAFT">DRAFT</option>
+                      <option value="SUBMITTED">SUBMITTED</option>
+                      <option value="APPROVED">APPROVED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  </div>
+
+                  <div className="control">
+                    <span>Semester</span>
+                    <select
+                      className="select"
+                      value={semesterFilter}
+                      onChange={(e) => {
+                        setPage(1);
+                        setSemesterFilter(e.target.value as any);
+                      }}
+                    >
+                      <option value="ALL">All</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                    </select>
+                  </div>
+
+                  <div className="control">
+                    <span>Tahun Ajaran</span>
+                    <select
+                      className="select"
+                      value={academicYearFilter}
+                      onChange={(e) => {
+                        setPage(1);
+                        setAcademicYearFilter(e.target.value);
+                      }}
+                    >
+                      <option value="ALL">All</option>
+                      <option value="2024/2025">2024/2025</option>
+                      <option value="2025/2026">2025/2026</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* row3 */}
+                <div className="controls__row3">
+                  <button
+                    className="btn btn--ghost"
+                    onClick={() => setShowAdvanced((v) => !v)}
+                  >
+                    Advanced Filter
+                  </button>
+
+                  <button
+                    className="btn btn--ghost"
+                    onClick={() => setShowAdvancedSort((v) => !v)}
+                  >
+                    Advanced Order
+                  </button>
+
+                  <button className="btn btn--primary" onClick={onExport}>
+                    Export CSV
+                  </button>
+                </div>
+
+                {/* adavnced filter */}
+                {showAdvanced && (
+                  <div className="adv">
+                    <div className="adv__group1">
+                      <div className="adv__item">
+                        <label className="adv__label">Logic</label>
+                        <select
+                          className="select"
+                          value={filterLogic}
                           onChange={(e) => {
                             setPage(1);
-                            setAfSemester((s) => ({
-                              ...s,
-                              1: e.target.checked,
-                            }));
+                            setFilterLogic(e.target.value as any);
                           }}
-                        />
-                        <span>1</span>
-                      </label>
+                        >
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                      </div>
 
-                      <label className="adv__check">
-                        <input
-                          type="checkbox"
-                          checked={afSemester[2]}
+                      <div className="adv__item">
+                        <label className="adv__label">NIM</label>
+                        <select
+                          className="select"
+                          value={afNimOp}
                           onChange={(e) => {
                             setPage(1);
-                            setAfSemester((s) => ({
-                              ...s,
-                              2: e.target.checked,
-                            }));
+                            setAfNimOp(e.target.value as any);
                           }}
+                        >
+                          <option value="contains">contains</option>
+                          <option value="startsWith">startsWith</option>
+                          <option value="equals">equals</option>
+                        </select>
+                      </div>
+
+                      <div className="adv__item">
+                        <label className="adv__label adv__label--ghost"></label>
+                        <input
+                          className="input"
+                          value={afNim}
+                          onChange={(e) => {
+                            setPage(1);
+                            setAfNim(e.target.value);
+                          }}
+                          placeholder="contoh: 0001"
                         />
-                        <span>2</span>
-                      </label>
-                    </div>
+                      </div>
 
-                    <div className="adv__block">
-                      <label className="adv__label">Status</label>
+                      <div className="adv__item">
+                        <label className="adv__label">Academic Year</label>
+                        <select
+                          className="select"
+                          value={afYearMode}
+                          onChange={(e) => {
+                            setPage(1);
+                            setAfYearMode(e.target.value as any);
+                          }}
+                        >
+                          <option value="equals">equals</option>
+                          <option value="between">between</option>
+                        </select>
+                      </div>
 
-                      {(
-                        ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"] as const
-                      ).map((st) => (
-                        <label className="adv__check" key={st}>
+                      <div className="adv__item adv__item--year">
+                        <label className="adv__label adv__label--ghost"></label>
+
+                        {afYearMode === "equals" ? (
                           <input
-                            type="checkbox"
-                            checked={afStatus[st]}
+                            className="input"
+                            placeholder="2025/2026"
+                            value={afYear}
                             onChange={(e) => {
                               setPage(1);
-                              setAfStatus((s) => ({
+                              setAfYear(e.target.value);
+                            }}
+                          />
+                        ) : (
+                          <div className="adv__between">
+                            <input
+                              className="input"
+                              placeholder="from (YYYY/YYYY)"
+                              value={afYearFrom}
+                              onChange={(e) => {
+                                setPage(1);
+                                setAfYearFrom(e.target.value);
+                              }}
+                            />
+                            <input
+                              className="input"
+                              placeholder="to (YYYY/YYYY)"
+                              value={afYearTo}
+                              onChange={(e) => {
+                                setPage(1);
+                                setAfYearTo(e.target.value);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="adv__group2">
+                      <div className="adv__block">
+                        <label className="adv__label">Semester</label>
+
+                        <label className="adv__check">
+                          <input
+                            type="checkbox"
+                            checked={afSemester[1]}
+                            onChange={(e) => {
+                              setPage(1);
+                              setAfSemester((s) => ({
                                 ...s,
-                                [st]: e.target.checked,
+                                1: e.target.checked,
                               }));
                             }}
                           />
-                          <span>{st}</span>
+                          <span>1</span>
                         </label>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="adv__actions">
-                    <button
-                      className="btn btn--ghost"
-                      onClick={() => {
-                        setPage(1);
-                        setFilterLogic("AND");
-                        setAfNimOp("contains");
-                        setAfNim("");
-                        setAfYearMode("equals");
-                        setAfYear("");
-                        setAfYearFrom("");
-                        setAfYearTo("");
-                        setAfSemester({ 1: false, 2: false });
-                        setAfStatus({
-                          DRAFT: false,
-                          SUBMITTED: false,
-                          APPROVED: false,
-                          REJECTED: false,
-                        });
-                      }}
-                    >
-                      Reset Advanced
-                    </button>
-                  </div>
-                </div>
-              )}
+                        <label className="adv__check">
+                          <input
+                            type="checkbox"
+                            checked={afSemester[2]}
+                            onChange={(e) => {
+                              setPage(1);
+                              setAfSemester((s) => ({
+                                ...s,
+                                2: e.target.checked,
+                              }));
+                            }}
+                          />
+                          <span>2</span>
+                        </label>
+                      </div>
 
-              {/* advancde order */}
-              {showAdvancedSort && (
-                <div className="adv">
-                  <div className="adv__group1">
-                    <div className="adv__item" style={{ gridColumn: "1 / -1" }}>
-                      <label className="adv__label">
-                        Advanced Order (multi-column)
-                      </label>
-                      <div
-                        style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}
-                      >
-                        Urutan dieksekusi dari atas ke bawah.
+                      <div className="adv__block">
+                        <label className="adv__label">Status</label>
+
+                        {(
+                          [
+                            "DRAFT",
+                            "SUBMITTED",
+                            "APPROVED",
+                            "REJECTED",
+                          ] as const
+                        ).map((st) => (
+                          <label className="adv__check" key={st}>
+                            <input
+                              type="checkbox"
+                              checked={afStatus[st]}
+                              onChange={(e) => {
+                                setPage(1);
+                                setAfStatus((s) => ({
+                                  ...s,
+                                  [st]: e.target.checked,
+                                }));
+                              }}
+                            />
+                            <span>{st}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
 
-                    {(sortRules ?? []).map((rule, idx) => (
+                    <div className="adv__actions">
+                      <button
+                        className="btn btn--ghost"
+                        onClick={() => {
+                          setPage(1);
+                          setFilterLogic("AND");
+                          setAfNimOp("contains");
+                          setAfNim("");
+                          setAfYearMode("equals");
+                          setAfYear("");
+                          setAfYearFrom("");
+                          setAfYearTo("");
+                          setAfSemester({ 1: false, 2: false });
+                          setAfStatus({
+                            DRAFT: false,
+                            SUBMITTED: false,
+                            APPROVED: false,
+                            REJECTED: false,
+                          });
+                        }}
+                      >
+                        Reset Advanced
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* advancde order */}
+                {showAdvancedSort && (
+                  <div className="adv">
+                    <div className="adv__group1">
                       <div
-                        key={idx}
                         className="adv__item"
                         style={{ gridColumn: "1 / -1" }}
                       >
+                        <label className="adv__label">
+                          Advanced Order (multi-column)
+                        </label>
                         <div
                           style={{
-                            display: "flex",
-                            gap: 10,
-                            alignItems: "center",
+                            color: "#6b7280",
+                            fontSize: 12,
+                            marginTop: 4,
                           }}
                         >
-                          <span style={{ width: 22, color: "#6b7280" }}>
-                            {idx + 1}.
-                          </span>
-
-                          <select
-                            className="select"
-                            value={rule.field}
-                            onChange={(e) => {
-                              setPage(1);
-                              setSortBy("id");
-                              setSortDir("desc");
-                              setSortRules((prev) => {
-                                const next = [...(prev ?? [])];
-                                next[idx] = {
-                                  ...next[idx],
-                                  field: e.target.value as any,
-                                };
-                                return next;
-                              });
-                            }}
-                          >
-                            {sortFieldOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-
-                          <select
-                            className="select"
-                            value={rule.dir}
-                            onChange={(e) => {
-                              setPage(1);
-                              setSortRules((prev) => {
-                                const next = [...(prev ?? [])];
-                                next[idx] = {
-                                  ...next[idx],
-                                  dir: e.target.value as any,
-                                };
-                                return next;
-                              });
-                            }}
-                          >
-                            <option value="asc">ASC</option>
-                            <option value="desc">DESC</option>
-                          </select>
-
-                          <button
-                            className="btn btn--ghost"
-                            onClick={() => {
-                              setPage(1);
-                              setSortRules((prev) => {
-                                const next = [...(prev ?? [])];
-                                next.splice(idx, 1);
-                                return next.length ? next : null;
-                              });
-                            }}
-                            title="Remove rule"
-                          >
-                            Remove
-                          </button>
+                          Urutan dieksekusi dari atas ke bawah.
                         </div>
                       </div>
-                    ))}
-                  </div>
 
-                  <div className="adv__actions" style={{ gap: 10 }}>
-                    <button
-                      className="btn btn--primary"
-                      onClick={() => {
-                        setPage(1);
-                        if (!sortRules || sortRules.length === 0) {
-                          setSortRules([
-                            { field: "academic_year", dir: "desc" },
-                            { field: "semester", dir: "asc" },
-                            { field: "student_nim", dir: "asc" },
-                          ]);
-                          return;
-                        }
-                        setSortRules([...sortRules]);
-                      }}
-                    >
-                      Apply Advanced Order
-                    </button>
-
-                    <button
-                      className="btn btn--ghost"
-                      onClick={() => {
-                        setPage(1);
-                        setSortRules((prev) => {
-                          const next = [...(prev ?? [])];
-                          next.push({ field: "student_nim", dir: "asc" });
-                          return next;
-                        });
-                      }}
-                    >
-                      + Add Rule
-                    </button>
-
-                    <button
-                      className="btn btn--ghost"
-                      onClick={() => {
-                        setPage(1);
-                        setSortRules(null);
-                        setShowAdvancedSort(false);
-                      }}
-                    >
-                      Use Header Sort
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="tableWrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    {columns.map((c) => {
-                      const active = sortBy === c.key;
-                      const indicator = active
-                        ? sortDir === "asc"
-                          ? " ▲"
-                          : " ▼"
-                        : "";
-                      return (
-                        <th
-                          key={c.key}
-                          onClick={() => onSort(c.key)}
-                          title="Click to sort"
+                      {(sortRules ?? []).map((rule, idx) => (
+                        <div
+                          key={idx}
+                          className="adv__item"
+                          style={{ gridColumn: "1 / -1" }}
                         >
-                          {c.label}
-                          {indicator}
-                        </th>
-                      );
-                    })}
-
-                    <th style={{ width: 160 }}>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.student_nim}</td>
-                      <td>{r.student_name}</td>
-                      <td>{r.course_code}</td>
-                      <td>{r.course_name}</td>
-                      <td>{r.semester}</td>
-                      <td>{r.academic_year}</td>
-                      <td>
-                        <Badge status={r.status} />
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            className="btn btn--ghost"
-                            type="button"
-                            onClick={() => {
-                              setEditingId(r.id);
-                              setEditingRow(r);
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "center",
                             }}
                           >
-                            Edit
-                          </button>
+                            <span style={{ width: 22, color: "#6b7280" }}>
+                              {idx + 1}.
+                            </span>
 
-                          <button
-                            className="btn btn--ghost"
-                            type="button"
-                            onClick={() => onDelete(r.id)}
-                          >
-                            Delete
-                          </button>
+                            <select
+                              className="select"
+                              value={rule.field}
+                              onChange={(e) => {
+                                setPage(1);
+                                setSortBy("id");
+                                setSortDir("desc");
+                                setSortRules((prev) => {
+                                  const next = [...(prev ?? [])];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    field: e.target.value as any,
+                                  };
+                                  return next;
+                                });
+                              }}
+                            >
+                              {sortFieldOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              className="select"
+                              value={rule.dir}
+                              onChange={(e) => {
+                                setPage(1);
+                                setSortRules((prev) => {
+                                  const next = [...(prev ?? [])];
+                                  next[idx] = {
+                                    ...next[idx],
+                                    dir: e.target.value as any,
+                                  };
+                                  return next;
+                                });
+                              }}
+                            >
+                              <option value="asc">ASC</option>
+                              <option value="desc">DESC</option>
+                            </select>
+
+                            <button
+                              className="btn btn--ghost"
+                              onClick={() => {
+                                setPage(1);
+                                setSortRules((prev) => {
+                                  const next = [...(prev ?? [])];
+                                  next.splice(idx, 1);
+                                  return next.length ? next : null;
+                                });
+                              }}
+                              title="Remove rule"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
+                      ))}
+                    </div>
 
-                  {rows.length === 0 && (
+                    <div className="adv__actions" style={{ gap: 10 }}>
+                      <button
+                        className="btn btn--primary"
+                        onClick={() => {
+                          setPage(1);
+                          if (!sortRules || sortRules.length === 0) {
+                            setSortRules([
+                              { field: "academic_year", dir: "desc" },
+                              { field: "semester", dir: "asc" },
+                              { field: "student_nim", dir: "asc" },
+                            ]);
+                            return;
+                          }
+                          setSortRules([...sortRules]);
+                        }}
+                      >
+                        Apply Advanced Order
+                      </button>
+
+                      <button
+                        className="btn btn--ghost"
+                        onClick={() => {
+                          setPage(1);
+                          setSortRules((prev) => {
+                            const next = [...(prev ?? [])];
+                            next.push({ field: "student_nim", dir: "asc" });
+                            return next;
+                          });
+                        }}
+                      >
+                        + Add Rule
+                      </button>
+
+                      <button
+                        className="btn btn--ghost"
+                        onClick={() => {
+                          setPage(1);
+                          setSortRules(null);
+                          setShowAdvancedSort(false);
+                        }}
+                      >
+                        Use Header Sort
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="tableWrap">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan={8} className="empty">
-                        No data
-                      </td>
+                      {columns.map((c) => {
+                        const active = sortBy === c.key;
+                        const indicator = active
+                          ? sortDir === "asc"
+                            ? " ▲"
+                            : " ▼"
+                          : "";
+                        return (
+                          <th
+                            key={c.key}
+                            onClick={() => onSort(c.key)}
+                            title="Click to sort"
+                          >
+                            {c.label}
+                            {indicator}
+                          </th>
+                        );
+                      })}
+
+                      <th style={{ width: 160 }}>Action</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
 
-            <div className="pagination">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="btn btn--ghost"
-              >
-                Prev
-              </button>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.student_nim}</td>
+                        <td>{r.student_name}</td>
+                        <td>{r.course_code}</td>
+                        <td>{r.course_name}</td>
+                        <td>{r.semester}</td>
+                        <td>{r.academic_year}</td>
+                        <td>
+                          <Badge status={r.status} />
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              className="btn btn--ghost"
+                              type="button"
+                              onClick={() => {
+                                setEditingId(r.id);
+                                setEditingRow(r);
+                              }}
+                            >
+                              Edit
+                            </button>
 
-              <span className="pagination__text">
-                Page <b>{meta?.page ?? page}</b> /{" "}
-                <b>{meta?.total_pages ?? 1}</b>
-              </span>
+                            <button
+                              className="btn btn--ghost"
+                              type="button"
+                              onClick={() => onDelete(r.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
 
-              <button
-                onClick={() =>
-                  setPage((p) =>
-                    meta ? Math.min(meta.total_pages, p + 1) : p + 1,
-                  )
-                }
-                disabled={meta ? page >= meta.total_pages : false}
-                className="btn btn--ghost"
-              >
-                Next
-              </button>
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="empty">
+                          No data
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="btn btn--ghost"
+                >
+                  Prev
+                </button>
+
+                <span className="pagination__text">
+                  Page <b>{meta?.page ?? page}</b> /{" "}
+                  <b>{meta?.total_pages ?? 1}</b>
+                </span>
+
+                <button
+                  onClick={() =>
+                    setPage((p) =>
+                      meta ? Math.min(meta.total_pages, p + 1) : p + 1,
+                    )
+                  }
+                  disabled={meta ? page >= meta.total_pages : false}
+                  className="btn btn--ghost"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+        </main>
+      </div>
+    );
+  }
 }
