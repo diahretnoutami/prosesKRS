@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import KrsModal from "./Components/KrsModal";
-const API_BASE = import.meta.env.VITE_API_URL;
+const API_BASE = "https://proseskrs-production.up.railway.app";
+
 
 type EnrollmentRow = {
   id: number;
