@@ -1,25 +1,24 @@
 FROM php:8.2-cli
 
-# Install dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     libpq-dev \
     && docker-php-ext-install pdo pdo_pgsql
 
-# Install composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Copy project
 COPY . .
 
-# Install Laravel dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Fix storage permission
+# FIX STORAGE (FINAL FIX)
 RUN mkdir -p storage/framework/views \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/logs \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8000
