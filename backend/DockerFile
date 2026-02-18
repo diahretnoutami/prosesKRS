@@ -1,18 +1,25 @@
-# Gunakan PHP image resmi berbasis Debian (ada apt-get)
-FROM php:8.2-cli-bullseye
+FROM php:8.2-cli
 
-# Set working directory
-WORKDIR /var/www
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql
 
-# Copy semua file project
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
 COPY . .
 
-# Install dependensi yang dibutuhkan
-RUN apt-get update && apt-get install -y \
-    zip unzip git curl libzip-dev libxml2-dev \
- && docker-php-ext-install zip pdo pdo_mysql \
- && php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
- && php composer-setup.php --install-dir=/usr/local/bin --filename=composer
-
-# Install composer dependencies Laravel
 RUN composer install --no-dev --optimize-autoloader
+
+# FIX view path
+RUN mkdir -p storage/framework/views \
+    && chmod -R 775 storage bootstrap/cache
+
+EXPOSE 8000
+
+CMD php artisan migrate --force && \
+    php artisan db:seed --force && \
+    php -S 0.0.0.0:$PORT -t public
