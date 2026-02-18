@@ -1,25 +1,31 @@
 FROM php:8.2-cli
 
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     libpq-dev \
     && docker-php-ext-install pdo pdo_pgsql
 
+# Install composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+# Copy project
 COPY . .
 
+# Install Laravel dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# FIX view path
+# Fix storage permission
 RUN mkdir -p storage/framework/views \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8000
 
 CMD php artisan migrate --force && \
-    php artisan db:seed --force && \
+    php artisan db:seed --class=StudentSeeder --force && \
+    php artisan db:seed --class=CourseSeeder --force && \
+    php -d memory_limit=2048M artisan db:seed --class=EnrollmentSeeder --force && \
     php -S 0.0.0.0:$PORT -t public
